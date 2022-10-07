@@ -1,0 +1,21 @@
+{
+  "name": "shopster",
+  "version": "1.0.0",
+  "description": "Shop System",
+  "main": "index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "mocha ./test/**/*.spec.*"
+  },
+  "author": "Stephan Bruny",
+  "license": "MIT",
+  "devDependencies": {
+    "mocha": "^10.0.0",
+    "nodemon": "^2.0.20"
+  },
+  "dependencies": {
+    "fastify": "^4.7.0",
+    "handlebars": "^4.7.7",
+    "monet": "^0.9.3"
+  }
+}
