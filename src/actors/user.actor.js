@@ -3,11 +3,6 @@ const { randomUUID } = require("crypto");
 module.exports = (messagebus) => {
     return messagebus.register({
         subscribe: {
-            order: {
-                finalized(order) {
-                    console.log("FINALIZED", order)
-                }
-            },
             user: {
                 articleRemoved({userId, articleId}) {
                     const shoppingCartId = `${userId}.shoppingCart`;
@@ -21,7 +16,7 @@ module.exports = (messagebus) => {
                     this.setProperty(shoppingCartId, userShoppingCart.concat([article]));
                     this.publish('shoppingCartUpdated', { userId, shoppingCart: this.getProperty(shoppingCartId) });
                 },
-                finalizeOrder({ userId }) {
+                createOrder({ userId }) {
                     const shoppingCartId = `${userId}.shoppingCart`;
                     const userShoppingCart = this.getProperty(shoppingCartId);
                     if (!userShoppingCart) {
@@ -34,7 +29,7 @@ module.exports = (messagebus) => {
                         date: new Date(),
                         total: userShoppingCart.reduce((acc, cur) => acc + cur.price, 0)
                     }
-                    this.send('order', 'finalized', order);
+                    this.send('order', 'created', order);
                 }
 
             }

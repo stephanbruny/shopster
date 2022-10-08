@@ -3,16 +3,16 @@ const UserActor = require('../src/actors/user.actor');
 const { randomUUID } = require("crypto");
 
 describe('Ordering', () => {
+    const randomArticle = (title, maxPrice = 100) => ({
+        id: randomUUID(),
+        gtin: randomUUID(),
+        price: toFixedPrice(Math.random() * maxPrice),
+        title
+    });
+    const toFixedPrice = n => parseFloat(n.toFixed(2));
     it('should order multiple articles and give discount on price above 100', () => {
         const messagebus = Messagebus(['user', 'order']);
-        const toFixedPrice = n => parseFloat(n.toFixed(2));
 
-        const randomArticle = (title, maxPrice = 100) => ({
-            id: randomUUID(),
-            gtin: randomUUID(),
-            price: toFixedPrice(Math.random() * maxPrice),
-            title
-        });
 
         const testArticle = {
             id: randomUUID(),
@@ -48,7 +48,7 @@ describe('Ordering', () => {
                     }
                 }
             }
-        })
+        });
 
         messagebus.publish('user', 'articleAdded', { userId: 'user-1', article: testArticle });
         messagebus.publish('user', 'articleAdded', { userId: 'user-1', article: randomArticle('Uncle Bobs flanell M') });
@@ -58,6 +58,30 @@ describe('Ordering', () => {
     });
 
     it('should complete an order with payment', () => {
+        const messagebus = Messagebus(['user', 'order']);
+        const actor = UserActor(messagebus);
+        const userId = randomUUID();
+
+        const articles = [
+            randomArticle('Foo Flighters Top Black L'),
+            randomArticle('Nerdwear Zipper Purple L'),
+            randomArticle('Chucks Norris 41 EU'),
+            randomArticle('Warstars Megaposter'),
+            randomArticle('The Ring - Ring')
+        ];
+
+        const orderActor = messagebus.register({
+            subscribe: {
+                order: {
+                    created(order) {
+                        console.log("ORDER", order)
+                    }
+                }
+            }
+        })
+
+        articles.forEach(article => messagebus.publish('user', 'articleAdded', { userId, article }));
+        messagebus.publish('user', 'createOrder', { userId });
         // TODO: Include shipping
         
     });
