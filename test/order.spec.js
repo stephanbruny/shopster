@@ -75,7 +75,7 @@ describe('Ordering', () => {
 
         const orderStateMachine = (order) => {
             const orderState = Object.assign({}, order);
-            return statemachine({
+            const machine = statemachine({
                 initial: {
                     entry() {
                         Object.assign(orderState, order, {
@@ -85,6 +85,9 @@ describe('Ordering', () => {
                     },
                     cancel() {
                         this.enter('cancelled');
+                    },
+                    pay() {
+                        this.enter('paid');
                     }
                 },
                 cancelled: {
@@ -92,8 +95,33 @@ describe('Ordering', () => {
                         Object.assign(orderState, { cancelled: new Date() });
                         this.emit('orderCancelled', orderState);
                     }
+                },
+                paid: {
+                    entry() {
+                        Object.assign(orderState, { paid: new Date() });
+                        this.emit('orderUpdated', orderState);
+                    },
+                    ship() {
+                        this.enter('shipped', orderState);
+                    }
+                },
+                shipped: {
+                    entry() {
+                        Object.assign(orderState, { shipped: new Date() });
+                        this.emit('orderUpdated', orderState);
+                    },
+                    received() {
+                        this.enter('completed', orderState)
+                    }
+                },
+                completed: {
+                    entry() {
+                        Object.assign(orderState, { completed: new Date() });
+                        this.emit('orderUpdated', orderState);
+                    }
                 }
             });
+            return machine;
         }
 
         const orderActor = messagebus.register({
@@ -108,9 +136,17 @@ describe('Ordering', () => {
                         orderMachine.addListener('orderCreated', order => {
                             console.log("ORDER CREATED", order)
                         })
+                        orderMachine.addListener('orderUpdated', order => {
+                            console.log("UPDATE", order)
+                        })
                         orderMachine.reset();
                         this.setProperty(orderId, orderMachine);
 
+                    },
+                    payed(orderId) {
+                        const orderPropertyId = `order-${orderId}`;
+                        const orderState = this.getProperty(orderPropertyId);
+                        orderState.send('pay');
                     },
                     cancel(orderId) {
                         const orderPropertyId = `order-${orderId}`;
@@ -124,8 +160,7 @@ describe('Ordering', () => {
         const orderId = randomUUID();
         articles.forEach(article => messagebus.publish('user', 'articleAdded', { userId, article }));
         messagebus.publish('user', 'createOrder', { userId, orderId });
-        messagebus.publish('order', 'cancel', orderId);
-
+        messagebus.publish('order', 'payed', orderId);
 //        console.log(orderActor)
         // TODO: Include shipping
         
