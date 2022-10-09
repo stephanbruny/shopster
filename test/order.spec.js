@@ -1,6 +1,8 @@
 const Messagebus = require('../src/messagebus');
 const UserActor = require('../src/actors/user.actor');
 const { randomUUID } = require("crypto");
+const statemachine = require('../src/statemachine');
+const { assert } = require('console');
 
 describe('Ordering', () => {
     const randomArticle = (title, maxPrice = 100) => ({
@@ -54,6 +56,7 @@ describe('Ordering', () => {
         messagebus.publish('user', 'articleAdded', { userId: 'user-1', article: randomArticle('Uncle Bobs flanell M') });
         messagebus.publish('user', 'articleAdded', { userId: 'user-1', article: randomArticle('Basic Shirt Black M') });
         messagebus.publish('user', 'finalizeOrder', { userId: 'user-1' });
+        assert(actor.user.state.get('user-1.shoppingCart'));
         console.log(actor.user.state)
     });
 
@@ -70,18 +73,60 @@ describe('Ordering', () => {
             randomArticle('The Ring - Ring')
         ];
 
+        const orderStateMachine = (order) => {
+            const orderState = Object.assign({}, order);
+            return statemachine({
+                initial: {
+                    entry() {
+                        Object.assign(orderState, order, {
+                            created: new Date()
+                        });
+                        this.emit('orderCreated', orderState);
+                    },
+                    cancel() {
+                        this.enter('cancelled');
+                    }
+                },
+                cancelled: {
+                    entry() {
+                        Object.assign(orderState, { cancelled: new Date() });
+                        this.emit('orderCancelled', orderState);
+                    }
+                }
+            });
+        }
+
         const orderActor = messagebus.register({
             subscribe: {
                 order: {
                     created(order) {
-                        console.log("ORDER", order)
+                        const orderId = `order-${order.id}`;
+                        const orderMachine = orderStateMachine(order);
+                        orderMachine.addListener('orderCancelled', order => {
+                            console.log("ORDER CANCELLED", order)
+                        })
+                        orderMachine.addListener('orderCreated', order => {
+                            console.log("ORDER CREATED", order)
+                        })
+                        orderMachine.reset();
+                        this.setProperty(orderId, orderMachine);
+
+                    },
+                    cancel(orderId) {
+                        const orderPropertyId = `order-${orderId}`;
+                        const orderState = this.getProperty(orderPropertyId);
+                        orderState.send('cancel');
                     }
                 }
             }
-        })
+        });
 
+        const orderId = randomUUID();
         articles.forEach(article => messagebus.publish('user', 'articleAdded', { userId, article }));
-        messagebus.publish('user', 'createOrder', { userId });
+        messagebus.publish('user', 'createOrder', { userId, orderId });
+        messagebus.publish('order', 'cancel', orderId);
+
+//        console.log(orderActor)
         // TODO: Include shipping
         
     });

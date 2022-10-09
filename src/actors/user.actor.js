@@ -16,7 +16,7 @@ module.exports = (messagebus) => {
                     this.setProperty(shoppingCartId, userShoppingCart.concat([article]));
                     this.publish('shoppingCartUpdated', { userId, shoppingCart: this.getProperty(shoppingCartId) });
                 },
-                createOrder({ userId }) {
+                createOrder({ userId, orderId }) {
                     const shoppingCartId = `${userId}.shoppingCart`;
                     const userShoppingCart = this.getProperty(shoppingCartId);
                     if (!userShoppingCart) {
@@ -24,14 +24,13 @@ module.exports = (messagebus) => {
                     }
                     const order = {
                         userId,
-                        id: randomUUID(),
+                        id: orderId,
                         shoppingCart: [ ...userShoppingCart ],
                         date: new Date(),
                         total: userShoppingCart.reduce((acc, cur) => acc + cur.price, 0)
                     }
                     this.send('order', 'created', order);
                 }
-
             }
         }
     });
