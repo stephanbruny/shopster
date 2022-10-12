@@ -75,12 +75,21 @@ describe('Ordering', () => {
 
         const orderStateMachine = (order) => {
             const orderState = Object.assign({}, order);
+            const upsert = (key, value) => {
+                if (orderState.value) return orderState;
+                return Object.assign(orderState, { [key]:value });
+            }
             const machine = statemachine({
                 initial: {
                     entry() {
                         Object.assign(orderState, order, {
                             created: new Date()
                         });
+                        if (orderState.cancelled) return this.enter('cancelled');
+                        if (orderState.completed) return this.enter('completed');
+                        if (orderState.shipped) return this.enter('shipped');
+                        if (orderState.paid) return this.enter('paid');
+
                         this.emit('orderCreated', orderState);
                     },
                     cancel() {
@@ -92,13 +101,13 @@ describe('Ordering', () => {
                 },
                 cancelled: {
                     entry() {
-                        Object.assign(orderState, { cancelled: new Date() });
+                        upsert('cancelled', new Date());
                         this.emit('orderCancelled', orderState);
                     }
                 },
                 paid: {
                     entry() {
-                        Object.assign(orderState, { paid: new Date() });
+                        upsert('paid', new Date());
                         this.emit('orderUpdated', orderState);
                     },
                     ship() {
@@ -107,7 +116,7 @@ describe('Ordering', () => {
                 },
                 shipped: {
                     entry() {
-                        Object.assign(orderState, { shipped: new Date() });
+                        upsert('shipped', new Date());
                         this.emit('orderUpdated', orderState);
                     },
                     received() {
@@ -116,7 +125,7 @@ describe('Ordering', () => {
                 },
                 completed: {
                     entry() {
-                        Object.assign(orderState, { completed: new Date() });
+                        upsert('completed', new Date());
                         this.emit('orderUpdated', orderState);
                     }
                 }
